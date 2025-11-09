@@ -1,0 +1,5 @@
+{
+  "name": "Matatag Lesson Plan Generator",
+  "description": "An AI-powered tool to automate and generate comprehensive, student-centered Matatag Lesson Plans based on user input and the DepEd General Shaping Paper guidelines, incorporating objectives, instructional design features, and 21st-century skills with Gemini.",
+  "requestFramePermissions": []
+}

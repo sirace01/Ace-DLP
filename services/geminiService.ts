@@ -1,23 +1,23 @@
 
 import { GoogleGenAI, GenerateContentResponse, GenerateContentParameters, Modality } from '@google/genai';
-import { IDFComponent, SkillDefinition, ChatMessage } from '../types';
+import { ChatMessage } from '../types';
 import * as pdfjsLib from 'pdfjs-dist';
 
 // Configure PDF.js worker source to point to the local file
 // This assumes pdf.worker.min.js is copied to the `dist` directory by the build script.
-// When index.html is loaded from the root, './dist/pdf.worker.min.js' refers to the correct path.
-pdfjsLib.GlobalWorkerOptions.workerSrc = './dist/pdf.worker.min.js';
+// When index.html is loaded from `dist/`, and index.js from `dist/`,
+// then the worker is a sibling within the same `dist/` directory.
+pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf.worker.min.js';
 
-// Utility function to get API key
-function getApiKey(): string {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error('API_KEY is not defined in environment variables.');
-  }
+// Utility function to get API key from window for client-side
+function getApiKey(): string | null {
+  // In a client-side environment like GitHub Pages, process.env is not available.
+  // We'll rely on a user-provided key stored in localStorage or passed via an app variable.
+  const apiKey = (window as any).MATATAG_GEMINI_API_KEY || localStorage.getItem('gemini_api_key');
   return apiKey;
 }
 
-// Base 64 encode function
+// Base 64 encode function (kept for potential future binary handling, not directly related to current PDF fix)
 function encode(bytes: Uint8Array): string {
   let binary = '';
   const len = bytes.byteLength;
@@ -49,8 +49,16 @@ export async function extractTextFromPdf(pdfArrayBuffer: ArrayBuffer): Promise<s
 
 // --- Text Generation Services ---
 
+async function createGeminiAI() {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('Gemini API Key is not set. Please provide your API key.');
+  }
+  return new GoogleGenAI({ apiKey: apiKey });
+}
+
 export async function generateContentPro(prompt: string, config?: Partial<GenerateContentParameters>): Promise<string> {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  const ai = await createGeminiAI();
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-2.5-pro',
@@ -68,7 +76,7 @@ export async function generateContentPro(prompt: string, config?: Partial<Genera
 }
 
 export async function generateContentFlash(prompt: string, config?: Partial<GenerateContentParameters>): Promise<string> {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  const ai = await createGeminiAI();
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -85,7 +93,7 @@ export async function generateContentFlash(prompt: string, config?: Partial<Gene
 }
 
 export async function generateContentFlashLite(prompt: string, config?: Partial<GenerateContentParameters>): Promise<string> {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  const ai = await createGeminiAI();
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-flash-lite-latest',
@@ -104,7 +112,7 @@ export async function generateContentFlashLite(prompt: string, config?: Partial<
 // --- Chatbot Services ---
 
 export async function* streamChatMessages(messages: ChatMessage[]): AsyncGenerator<string> {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  const ai = await createGeminiAI();
   const chat = ai.chats.create({
     model: 'gemini-2.5-flash',
     config: {
@@ -133,7 +141,7 @@ export async function* streamChatMessages(messages: ChatMessage[]): AsyncGenerat
 // --- Image Generation Services ---
 
 export async function generateImage(prompt: string): Promise<string> {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  const ai = await createGeminiAI();
   try {
     const response = await ai.models.generateImages({
       model: 'imagen-4.0-generate-001',
